@@ -74,23 +74,15 @@ class StaticURLTests(TestCase):
             data=form_data,
             follow=True
         )
+        # проверяем возвращаемый код
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+        # проверяем, что пользователь добавился в базу
         user = get_object_or_404(User, username='testname')
-
         self.assertEqual(user.get_username(), 'testname')
+
         # Проверяем, сработал ли редирект
         self.assertRedirects(
             response,
             reverse('posts:index')
         )
-
-        # Проверяем, увеличилось ли число постов
-        #self.assertEqual(Post.objects.count(), posts_count + 1)
-
-        # Проверяем, что создалась запись с заданным текстом
-        #self.assertTrue(
-        #    Post.objects.filter(
-        #        text='Тестовый пост 2'
-        #    ).exists()
-        #)
