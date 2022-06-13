@@ -1,8 +1,7 @@
+from django import forms
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
-from django import forms
-
 from posts.models import Group, Post
 
 User = get_user_model()
@@ -21,9 +20,8 @@ class PostPagesTests(TestCase):
         )
         # генерим несколько постов для проверки работы пажинатора
         POSTS_COUNT: int = 17
+        posts_for_create = []
         for i in range(POSTS_COUNT):
-            cls.posts = []
-
             # для 12-го поста задаем другого автора и отсутствие группы
             if i == 12:
                 group = None
@@ -31,12 +29,17 @@ class PostPagesTests(TestCase):
             else:
                 group = cls.group
                 author = cls.user
-            post = Post.objects.create(
-                author=author,
-                text=f'Тестовый пост {i}',
-                group=group
+
+            posts_for_create.append(
+                Post(
+                    author=author,
+                    text=f'Тестовый пост {i}',
+                    group=group
+                )
             )
-            cls.posts.append(post)
+        Post.objects.bulk_create(posts_for_create)
+
+        cls.POST_ID_FOR_TEST = 1
 
     def setUp(self) -> None:
         self.guest_client = Client()
@@ -47,8 +50,11 @@ class PostPagesTests(TestCase):
             PostPagesTests.user_not_author
         )
 
-    def test_pages_uses_correct_template(self):
-        """URL-адрес использует соответствующий шаблон."""
+    def test_pages_uses_correct_template_for_auth_user(self):
+        """
+        URL-адрес использует соответствующий шаблон
+        (для авторизованного пользователя).
+        """
         templates_pages_names = {
             reverse('posts:index'): 'posts/index.html',
             reverse(
@@ -59,18 +65,43 @@ class PostPagesTests(TestCase):
             ): 'posts/profile.html',
             reverse(
                 'posts:post_detail',
-                kwargs={'post_id': PostPagesTests.posts[0].pk}
+                kwargs={'post_id': PostPagesTests.POST_ID_FOR_TEST}
             ): 'posts/post_detail.html',
             reverse(
                 'posts:post_edit',
-                kwargs={'post_id': PostPagesTests.posts[0].pk}
+                kwargs={'post_id': PostPagesTests.POST_ID_FOR_TEST}
             ): 'posts/create_post.html',
 
             reverse('posts:post_create'): 'posts/create_post.html'
         }
+
         for reverse_name, template in templates_pages_names.items():
             with self.subTest(template=template):
                 response = self.authorized_client.get(reverse_name)
+                self.assertTemplateUsed(response, template)
+
+    def test_pages_uses_correct_template_for_unauth_user(self):
+        """
+        URL-адрес использует соответствующий шаблон
+        (для неавторизованного пользователя).
+        """
+        templates_pages_names = {
+            reverse('posts:index'): 'posts/index.html',
+            reverse(
+                'posts:group_list', kwargs={'slug': 'test-slug'}
+            ): 'posts/group_list.html',
+            reverse(
+                'posts:profile', kwargs={'username': 'APushkin'}
+            ): 'posts/profile.html',
+            reverse(
+                'posts:post_detail',
+                kwargs={'post_id': PostPagesTests.POST_ID_FOR_TEST}
+            ): 'posts/post_detail.html',
+        }
+
+        for reverse_name, template in templates_pages_names.items():
+            with self.subTest(template=template):
+                response = self.guest_client.get(reverse_name)
                 self.assertTemplateUsed(response, template)
 
     def test_post_index_page_show_correct_context(self):
@@ -120,7 +151,7 @@ class PostPagesTests(TestCase):
         response = self.guest_client.get(
             reverse(
                 'posts:post_detail',
-                kwargs={'post_id': PostPagesTests.posts[0].pk}
+                kwargs={'post_id': PostPagesTests.POST_ID_FOR_TEST}
             )
         )
         # Взяли первый элемент из списка и проверили, что его содержание
@@ -130,7 +161,7 @@ class PostPagesTests(TestCase):
         author_0 = first_object.author.username
         group_0 = first_object.group.title
         self.assertEqual(author_0, 'APushkin')
-        self.assertEqual(text_0, 'Тестовый пост 16')
+        self.assertEqual(text_0, 'Тестовый пост 0')
         self.assertEqual(group_0, 'Тестовая группа')
 
     def test_post_edit_show_correct_context(self):
@@ -139,7 +170,7 @@ class PostPagesTests(TestCase):
         response = self.authorized_client.get(
             reverse(
                 'posts:post_edit',
-                kwargs={'post_id': PostPagesTests.posts[0].pk}
+                kwargs={'post_id': PostPagesTests.POST_ID_FOR_TEST}
             )
         )
         is_edit = response.context.get('is_edit')
@@ -192,7 +223,7 @@ class PostPagesTests(TestCase):
         response = self.authorized_client.get(
             reverse(
                 'posts:post_edit',
-                kwargs={'post_id': PostPagesTests.posts[0].pk}
+                kwargs={'post_id': PostPagesTests.POST_ID_FOR_TEST}
             )
         )
 

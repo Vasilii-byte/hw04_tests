@@ -18,13 +18,15 @@ class PostModelTest(TestCase):
         )
         cls.post = Post.objects.create(
             author=cls.user,
-            text='Тестовая пост',
+            text='Тестовая пост больше 15 символов',
         )
 
     def test_models_have_correct_object_names(self):
         """Проверяем, что у моделей корректно работает __str__."""
+        MAX_LENGTH_FOR_TEXT_FIELD: int = 15
         object_names = {
-            PostModelTest.post: PostModelTest.post.text[:15],
+            PostModelTest.post:
+                PostModelTest.post.text[:MAX_LENGTH_FOR_TEXT_FIELD],
             PostModelTest.group: PostModelTest.group.title,
         }
         for obj, expected_value in object_names.items():

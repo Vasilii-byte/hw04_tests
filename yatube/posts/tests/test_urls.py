@@ -1,7 +1,7 @@
 from http import HTTPStatus
-from django.contrib.auth import get_user_model
-from django.test import TestCase, Client
 
+from django.contrib.auth import get_user_model
+from django.test import Client, TestCase
 from posts.models import Group, Post
 
 User = get_user_model()
@@ -45,14 +45,14 @@ class StaticURLTests(TestCase):
                 response = self.guest_client.get(url)
                 self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    def test_return_status_ok_for_post_edit_author(self):
+    def test_return_status_ok_in_post_edit_for_author(self):
         """Проверка возможности редактирования поста для автора поста."""
         response = self.authorized_client.get(
             f'/posts/{StaticURLTests.post.pk}/edit/'
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    def test_return_status_ok_for_post_edit_not_author(self):
+    def test_return_redirect_in_post_edit_for_not_author(self):
         """Проверка редиректа с /edit/ для авторизованного пользователя,
         который не является автором.
         """
@@ -64,7 +64,7 @@ class StaticURLTests(TestCase):
             (f'/posts/{StaticURLTests.post.pk}/')
         )
 
-    def test_return_status_ok_for_post_edit_not_auth(self):
+    def test_return_redirect_in_post_edit_for_unauth_user(self):
         """Проверка редиректа с /create/ для гостя."""
         response = self.guest_client.get(
             f'/posts/{StaticURLTests.post.pk}/edit/'
@@ -74,12 +74,12 @@ class StaticURLTests(TestCase):
             (f'/auth/login/?next=/posts/{StaticURLTests.post.pk}/edit/')
         )
 
-    def test_return_status_ok_for_create(self):
+    def test_return_status_ok_for_create_for_auth_user(self):
         """Проверка создания поста для авторизованного пользователя."""
         response = self.authorized_client.get('/create/')
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    def test_return_status_ok_for_create_not_auth(self):
+    def test_return_redirect_in_create_unuth_user(self):
         """Проверка редиректа с /create/ для гостя."""
         response = self.guest_client.get('/create/')
         self.assertRedirects(
