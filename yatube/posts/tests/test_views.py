@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 from posts.models import Group, Post
@@ -18,6 +19,20 @@ class PostPagesTests(TestCase):
             slug='test-slug',
             description='Тестовое описание',
         )
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
+
         # генерим несколько постов для проверки работы пажинатора
         POSTS_COUNT: int = 17
         posts_for_create = []
@@ -34,7 +49,8 @@ class PostPagesTests(TestCase):
                 Post(
                     author=author,
                     text=f'Тестовый пост {i}',
-                    group=group
+                    group=group,
+                    image=uploaded
                 )
             )
         Post.objects.bulk_create(posts_for_create)
@@ -115,6 +131,7 @@ class PostPagesTests(TestCase):
         self.assertEqual(author_0, 'APushkin')
         self.assertEqual(text_0, 'Тестовый пост 16')
         self.assertEqual(group_0, 'Тестовая группа')
+        self.assertIsNotNone(first_object.image)
 
     def test_post_group_list_page_show_correct_context(self):
         """Шаблон group_list сформирован с правильным контекстом."""
@@ -130,6 +147,7 @@ class PostPagesTests(TestCase):
         self.assertEqual(author_0, 'APushkin')
         self.assertEqual(text_0, 'Тестовый пост 16')
         self.assertEqual(group_0, 'Тестовая группа')
+        self.assertIsNotNone(first_object.image)
 
     def test_post_profile_page_show_correct_context(self):
         """Шаблон profile сформирован с правильным контекстом."""
@@ -145,6 +163,7 @@ class PostPagesTests(TestCase):
         self.assertEqual(author_0, 'APushkin')
         self.assertEqual(text_0, 'Тестовый пост 16')
         self.assertEqual(group_0, 'Тестовая группа')
+        self.assertIsNotNone(first_object.image)
 
     def test_post_detail_page_show_correct_context(self):
         """Шаблон post_detail сформирован с правильным контекстом."""
@@ -163,6 +182,7 @@ class PostPagesTests(TestCase):
         self.assertEqual(author_0, 'APushkin')
         self.assertEqual(text_0, 'Тестовый пост 0')
         self.assertEqual(group_0, 'Тестовая группа')
+        self.assertIsNotNone(first_object.image)
 
     def test_post_edit_show_correct_context(self):
         """Шаблон create_post при редактировании сформирован

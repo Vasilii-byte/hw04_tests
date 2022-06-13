@@ -75,7 +75,9 @@ class StaticURLTests(TestCase):
         )
 
     def test_return_status_ok_for_create_for_auth_user(self):
-        """Проверка создания поста для авторизованного пользователя."""
+        """Проверка возможности создания поста
+        для авторизованного пользователя.
+        """
         response = self.authorized_client.get('/create/')
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
@@ -106,3 +108,25 @@ class StaticURLTests(TestCase):
             with self.subTest(url=url):
                 response = self.authorized_client.get(url)
                 self.assertTemplateUsed(response, template)
+
+    def test_return_status_for_comment(self):
+        """Проверка возможности создания поста.
+        """
+        # проверяем, что авторизованный пользователь может комментировать посты
+        response = self.authorized_client.get(
+            f'/posts/{StaticURLTests.post.pk}/comment/'
+        )
+        self.assertRedirects(
+            response,
+            (f'/posts/{StaticURLTests.post.pk}/')
+        )
+
+        # проверяем, что неавторизованный
+        # пользователь не может комментировать посты
+        response = self.guest_client.get(
+            f'/posts/{StaticURLTests.post.pk}/comment/'
+        )
+        self.assertRedirects(
+            response,
+            (f'/auth/login/?next=/posts/{StaticURLTests.post.pk}/comment/')
+        )
