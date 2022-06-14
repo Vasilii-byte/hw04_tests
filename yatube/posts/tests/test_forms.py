@@ -1,3 +1,4 @@
+from http import HTTPStatus
 import shutil
 import tempfile
 
@@ -6,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
-from posts.models import Group, Post
+from posts.models import Comment, Group, Post
 
 User = get_user_model()
 
@@ -187,5 +188,67 @@ class PostCreateFormTests(TestCase):
         self.assertFalse(
             Post.objects.filter(
                 text='Измененный пост 1'
+            ).exists()
+        )
+
+    def test_create_comment_for_auth_user(self):
+        """
+        Валидная форма создает запись в Comment
+        (для авторизованного пользователя).
+        """
+
+        form_data = {
+            'text': 'Это тестовый комментарий!',
+        }
+
+        response = self.authorized_client.post(
+            reverse(
+                'posts:add_comment',
+                kwargs={'post_id': PostCreateFormTests.post.pk}
+            ),
+            data=form_data,
+            follow=True
+        )
+
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        # Проверяем, что коммент создан
+        self.assertTrue(
+            Comment.objects.filter(
+                post__pk=PostCreateFormTests.post.pk,
+                text=form_data['text'],
+            ).exists()
+        )
+
+    def test_create_comment_for_unauth_user(self):
+        """
+        Проверяем, что неавторизованный пользователь
+        не может создать комментарий.
+        """
+
+        form_data = {
+            'text': 'Это тестовый комментарий!',
+        }
+
+        response = self.guest_client.post(
+            reverse(
+                'posts:add_comment',
+                kwargs={'post_id': PostCreateFormTests.post.pk}
+            ),
+            data=form_data,
+            follow=True
+        )
+
+        # Проверяем, сработал ли редирект
+        self.assertRedirects(
+            response,
+            f'/auth/login/?next=/posts/{PostCreateFormTests.post.pk}/comment/'
+        )
+
+        # Проверяем, что коммент не создан
+        self.assertFalse(
+            Comment.objects.filter(
+                post__pk=PostCreateFormTests.post.pk,
+                text=form_data['text'],
             ).exists()
         )

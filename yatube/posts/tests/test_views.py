@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
-from posts.models import Group, Post
+from posts.models import Comment, Group, Post
 
 User = get_user_model()
 
@@ -56,6 +56,12 @@ class PostPagesTests(TestCase):
         Post.objects.bulk_create(posts_for_create)
 
         cls.POST_ID_FOR_TEST = 1
+
+        cls.comment = Comment.objects.create(
+            post=Post.objects.get(pk=cls.POST_ID_FOR_TEST),
+            author=cls.user,
+            text='Это тестовый комментарий'
+        )
 
     def setUp(self) -> None:
         self.guest_client = Client()
@@ -271,3 +277,13 @@ class PostPagesTests(TestCase):
             with self.subTest(value=value):
                 form_field = response.context.get('form').fields.get(value)
                 self.assertIsInstance(form_field, expected)
+
+    def test_comment_is_on_page(self):
+        """Проверка: Комментарий есть на странице."""
+        response = self.guest_client.get(
+            reverse(
+                'posts:post_detail',
+                kwargs={'post_id': PostPagesTests.POST_ID_FOR_TEST}
+            ),
+        )
+        self.assertEqual(len(response.context['comments']), 1)
