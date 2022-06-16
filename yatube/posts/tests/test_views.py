@@ -1,9 +1,12 @@
+from http import HTTPStatus
+
 from django import forms
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
-from posts.models import Comment, Group, Post
+from posts.models import Comment, Follow, Group, Post
 
 User = get_user_model()
 
@@ -287,3 +290,111 @@ class PostPagesTests(TestCase):
             ),
         )
         self.assertEqual(len(response.context['comments']), 1)
+
+    def test_cache_page(self):
+        """ Проверка: количество постов на странице
+        после удаления поста не изменилось."""
+        response = self.authorized_client.get(
+            reverse('posts:index') + '?page=2'
+        )
+        content_before = response.content
+
+        post = Post.objects.get(pk=PostPagesTests.POST_ID_FOR_TEST)
+        post.delete()
+
+        response = self.authorized_client.get(
+            reverse('posts:index') + '?page=2'
+        )
+        self.assertEqual(content_before, response.content)
+
+        cache.clear()
+        response = self.authorized_client.get(
+            reverse('posts:index') + '?page=2'
+        )
+        self.assertNotEqual(content_before, response.content)
+
+    def test_auth_user_can_follow(self):
+        """Авторизованный пользователь может подписаться и отписаться."""
+        author = User.objects.create_user(username='Lermontov')
+        Post.objects.create(
+            author=author,
+            text='Тестовый пост для проверки подписки'
+        )
+
+        # создаем подписку
+        self.authorized_client.get(
+            reverse(
+                'posts:profile_follow',
+                kwargs={'username': author.username}
+            )
+        )
+        # проверяем добавление подписки в базу
+        self.assertTrue(
+            Follow.objects.filter(
+                user=PostPagesTests.user, author=author
+            ).exists()
+        )
+
+        # проверяем, что пост автора добавился на страницу пользователя
+        response = self.authorized_client.get(
+            reverse('posts:follow_index')
+        )
+        self.assertEqual(response.context['page_obj'][0].author, author)
+
+        # проверяем возможности отписки
+        self.authorized_client.get(
+            reverse(
+                'posts:profile_unfollow',
+                kwargs={'username': author.username}
+            )
+        )
+
+        self.assertFalse(
+            Follow.objects.filter(
+                user=PostPagesTests.user, author=author
+            ).exists()
+        )
+
+    def test_unauth_user_can_follow(self):
+        """Неавторизованный пользователь не может подписаться и отписаться."""
+        author = User.objects.create_user(username='Lermontov')
+        Post.objects.create(
+            author=author,
+            text='Тестовый пост для проверки подписки'
+        )
+
+        # проверяем подписку
+        response = self.guest_client.get(
+            reverse(
+                'posts:profile_follow',
+                kwargs={'username': author.username}
+            )
+        )
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertRedirects(
+            response,
+            (f'/auth/login/?next=/profile/{author.username}/follow/')
+        )
+        self.assertFalse(
+            Follow.objects.filter(
+                user=PostPagesTests.user, author=author
+            ).exists()
+        )
+
+        # проверяем, что пост автора отсутствует на странице пользователя
+        response = self.authorized_client_not_author.get(
+            reverse('posts:follow_index')
+        )
+        self.assertEqual(len(response.context['page_obj']), 0)
+
+        # проверяем возможности отписки
+        response = self.guest_client.get(
+            reverse(
+                'posts:profile_unfollow',
+                kwargs={'username': author.username}
+            )
+        )
+        self.assertRedirects(
+            response,
+            (f'/auth/login/?next=/profile/{author.username}/unfollow/')
+        )

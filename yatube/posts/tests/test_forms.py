@@ -1,6 +1,6 @@
 from http import HTTPStatus
-import shutil
-import tempfile
+from shutil import rmtree
+from tempfile import mkdtemp
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -11,7 +11,7 @@ from posts.models import Comment, Group, Post
 
 User = get_user_model()
 
-TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
+TEMP_MEDIA_ROOT = mkdtemp(dir=settings.BASE_DIR)
 
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
@@ -36,7 +36,7 @@ class PostCreateFormTests(TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         super().tearDownClass()
-        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+        rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
         self.guest_client = Client()
